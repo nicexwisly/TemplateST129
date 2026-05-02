@@ -2,8 +2,9 @@ from flask import Flask, request
 import requests
 import cloudinary
 import cloudinary.uploader
-from PIL import Image
+from PIL import Image, ImageDraw
 import io
+import math
 
 app = Flask(__name__)
 
@@ -16,6 +17,7 @@ cloudinary.config(
     api_secret="bOb42Auph9wkuhCAu_Ry75m8yY0"
 )
 
+# เก็บรูป user
 user_images = {}
 
 # -------------------------
@@ -26,13 +28,6 @@ def get_image_content(message_id):
     headers = {"Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"}
     r = requests.get(url, headers=headers)
     return r.content
-
-# -------------------------
-# upload Cloudinary
-# -------------------------
-def upload_to_cloudinary(image_bytes):
-    result = cloudinary.uploader.upload(image_bytes)
-    return result["secure_url"]
 
 # -------------------------
 # crop รูปให้พอดีช่อง
@@ -55,43 +50,59 @@ def fit_image(img, w, h):
     return img.resize((w, h))
 
 # -------------------------
-# รวมรูปลง template
+# สร้าง grid อัตโนมัติ
+# -------------------------
+def generate_grid(n, canvas_w, canvas_h, margin=20, gap=15):
+    cols = math.ceil(math.sqrt(n))
+    rows = math.ceil(n / cols)
+
+    cell_w = (canvas_w - margin*2 - gap*(cols-1)) // cols
+    cell_h = (canvas_h - margin*2 - gap*(rows-1)) // rows
+
+    positions = []
+
+    for i in range(n):
+        row = i // cols
+        col = i % cols
+
+        x = margin + col * (cell_w + gap)
+        y = margin + row * (cell_h + gap)
+
+        positions.append((x, y, cell_w, cell_h))
+
+    return positions
+
+# -------------------------
+# รวมรูป + แถบแดง
 # -------------------------
 def create_collage(image_urls):
-    # ใช้ template ของคุณ
-    canvas = Image.open("template.png").convert("RGB")
+    canvas_w, canvas_h = 1000, 1000
 
-    # 📐 layout อิงจากงานคุณ (8 ช่อง)
-    layouts = {
-        8: [
-            (60, 120, 200, 220), (280, 120, 200, 220),
-            (500, 120, 200, 220), (720, 120, 200, 220),
+    header_h = 120
+    footer_h = 120
 
-            (60, 360, 200, 220), (280, 360, 200, 220),
-            (500, 360, 200, 220), (720, 360, 200, 220),
-        ],
-        6: [
-            (100,150,250,220),(375,150,250,220),(650,150,250,220),
-            (100,380,250,220),(375,380,250,220),(650,380,250,220),
-        ],
-        4: [
-            (120,150,350,220),(530,150,350,220),
-            (120,380,350,220),(530,380,350,220),
-        ]
-    }
+    canvas = Image.new("RGB", (canvas_w, canvas_h), "white")
+    draw = ImageDraw.Draw(canvas)
 
-    layout = layouts.get(len(image_urls), layouts[4])
+    # 🔴 แถบแดง
+    draw.rectangle([0, 0, canvas_w, header_h], fill=(200, 0, 0))
+    draw.rectangle([0, canvas_h-footer_h, canvas_w, canvas_h], fill=(200, 0, 0))
 
-    for i, url in enumerate(image_urls[:len(layout)]):
+    content_y = header_h
+    content_h = canvas_h - header_h - footer_h
+
+    positions = generate_grid(len(image_urls), canvas_w, content_h)
+
+    for i, url in enumerate(image_urls):
         response = requests.get(url)
-        img = Image.open(io.BytesIO(response.content))
+        img = Image.open(io.BytesIO(response.content)).convert("RGB")
 
-        x, y, w, h = layout[i]
+        x, y, w, h = positions[i]
+        y = y + content_y
+
         img = fit_image(img, w, h)
-
         canvas.paste(img, (x, y))
 
-    # save ลง memory
     buffer = io.BytesIO()
     canvas.save(buffer, format="JPEG")
     buffer.seek(0)
@@ -119,13 +130,14 @@ def webhook():
 
             try:
                 image_content = get_image_content(message_id)
-                image_url = upload_to_cloudinary(image_content)
+                result = cloudinary.uploader.upload(image_content)
+                image_url = result["secure_url"]
 
                 user_images.setdefault(user_id, []).append(image_url)
 
                 reply_msg = {
                     "type": "text",
-                    "text": "รับรูปแล้ว 👍"
+                    "text": "รับรูปแล้ว 👍 ส่งเพิ่มได้ หรือพิมพ์ 'สร้าง'"
                 }
 
             except Exception as e:
@@ -150,6 +162,7 @@ def webhook():
                 else:
                     try:
                         collage_buffer = create_collage(images)
+
                         result = cloudinary.uploader.upload(collage_buffer)
                         collage_url = result["secure_url"]
 
@@ -184,7 +197,7 @@ def webhook():
         else:
             continue
 
-        # reply
+        # 🔁 reply
         requests.post(
             "https://api.line.me/v2/bot/message/reply",
             headers={
