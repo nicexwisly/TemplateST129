@@ -9,7 +9,7 @@ app = Flask(__name__)
 CHANNEL_ACCESS_TOKEN = "EJAWE8x7YodPqyYxyBYhicZX8i5N9rWZC+pogtrRhBYmFtfEdHdI3+0YS+8kpWLBnx5tOPz+tWzrn693mTF5K6m5Z30fgdowDfvfAl1ACitJE27aYRyV3os4ZjOZ17tCnzH1w0yEAPT3AkrE4mYCmgdB04t89/1O/w1cDnyilFU="
 
 cloudinary.config(
-    cloud_name="Root",
+    cloud_name="ddr1jxzrr",
     api_key="685973871719362",
     api_secret="bOb42Auph9wkuhCAu_Ry75m8yY0"
 )
