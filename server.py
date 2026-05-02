@@ -78,15 +78,11 @@ def generate_grid(n, canvas_w, canvas_h, margin=20, gap=15):
 def create_collage(image_urls):
     canvas_w, canvas_h = 1000, 1000
 
-    header_h = 120
-    footer_h = 120
+    header_h = 68
+    footer_h = 86
 
-    canvas = Image.new("RGB", (canvas_w, canvas_h), "white")
-    draw = ImageDraw.Draw(canvas)
-
-    # 🔴 แถบแดง
-    draw.rectangle([0, 0, canvas_w, header_h], fill=(200, 0, 0))
-    draw.rectangle([0, canvas_h-footer_h, canvas_w, canvas_h], fill=(200, 0, 0))
+    canvas = Image.open("template.png").convert("RGB")
+    canvas_w, canvas_h = canvas.size
 
     content_y = header_h
     content_h = canvas_h - header_h - footer_h
