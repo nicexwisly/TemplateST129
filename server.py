@@ -28,6 +28,8 @@ def upload_to_imgbb(image_bytes):
         files={"image": image_bytes}
     )
 
+    print("IMGBB RESPONSE:", response.text)  # 👈 เพิ่มบรรทัดนี้
+
     return response.json()["data"]["url"]
 
 @app.route("/", methods=["POST"])
