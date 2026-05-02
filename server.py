@@ -34,25 +34,20 @@ def webhook():
             # ดึง binary รูปมา
             image_content = get_image_content(message_id)
 
-            # 🔁 ตอบกลับด้วยรูปเดิม (echo)
-            url = "https://api.line.me/v2/bot/message/reply"
-            headers = {
-                "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}",
-                "Content-Type": "application/json"
-            }
+            image_url = upload_to_imgur(image_content)
 
             data = {
                 "replyToken": reply_token,
                 "messages": [
-                    {
+                {
                         "type": "image",
-                        "originalContentUrl": f"https://api-data.line.me/v2/bot/message/{message_id}/content",
-                        "previewImageUrl": f"https://api-data.line.me/v2/bot/message/{message_id}/content"
-                    }
+                        "originalContentUrl": image_url,
+                        "previewImageUrl": image_url
+                }
                 ]
             }
 
-            requests.post(url, headers=headers, json=data)
+            requests.post(url, headers=headers, json=data)    
 
         # 💬 ถ้าเป็น text
         elif message["type"] == "text":
@@ -77,3 +72,16 @@ def webhook():
             requests.post(url, headers=headers, json=data)
 
     return "OK"
+
+def upload_to_imgur(image_bytes):
+    url = "https://api.imgur.com/3/image"
+    headers = {
+        "Authorization": "Client-ID YOUR_CLIENT_ID"
+    }
+
+    files = {
+        "image": image_bytes
+    }
+
+    response = requests.post(url, headers=headers, files=files)
+    return response.json()["data"]["link"]
